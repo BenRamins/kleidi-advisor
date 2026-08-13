@@ -9,3 +9,8 @@ PLAN.md
 .specify/
 # <<< otto-init <<<
 
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/
+.claude/helpers/graft-statusline.cjs
+.claude/helpers/graft-hooks.cjs
