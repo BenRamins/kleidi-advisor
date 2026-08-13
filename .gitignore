@@ -2,3 +2,10 @@ CLAUDE.md
 plan-board.svg
 REFERENCE.md
 PLAN.md
+
+# >>> otto-init >>>  (regenerable/personal tooling ignored; governance + artifacts stay tracked)
+.claude/settings.local.json
+.claude/skills/
+.specify/
+# <<< otto-init <<<
+
