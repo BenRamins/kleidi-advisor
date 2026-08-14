@@ -9,16 +9,24 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from . import __version__
-from .audit import DEFAULT_DELAY_SECONDS, parse_list_file, run_audit, summary_line, to_json, to_markdown
+from .audit import (
+    DEFAULT_DELAY_SECONDS,
+    bytes_line,
+    parse_list_file,
+    run_audit,
+    summary_line,
+    to_json,
+    to_markdown,
+)
 from .bench import BenchParseError, run_bench
 from .binaries import BinaryResolutionError, resolve_binaries
-from .compat import FALLBACK_GENERIC, classify
+from .compat import KLEIDIAI_MISS_VERDICTS, classify
 from .fix import FixInputError, FixStageError, run_fix
 from .gguf import DominantType, GGUFError, compute_dominant_type, read_gguf
 from .ppl import PPLParseError, QualityGateError, check_gate
 from .remote import RemoteScanError, fetch_and_read
 from .report import load_results, render_markdown, render_plot
-from .verify import run_verify
+from .verify import VERIFY_BINARY, run_verify
 
 
 def _not_implemented(args: argparse.Namespace) -> int:
@@ -51,7 +59,7 @@ def _print_scan_text(payload: Dict[str, Any], dominant: DominantType) -> None:
         lines.append(f"next: {payload['next']}")
     verify = payload.get("verify")
     if verify is not None:
-        lines.append(f"verify: {verify['outcome']} (matched: {', '.join(verify['matched_patterns']) or 'none'})")
+        lines.append(f"verify: {verify['outcome']} ({verify['detail']})")
     print("\n".join(lines))
 
 
@@ -86,14 +94,15 @@ def _cmd_scan(args: argparse.Namespace) -> int:
 
     if args.verify:
         try:
-            resolved = resolve_binaries(["llama-cli"], llama_bin_dir=args.llama_bin_dir)
+            resolved = resolve_binaries([VERIFY_BINARY], llama_bin_dir=args.llama_bin_dir)
         except BinaryResolutionError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
-        verify_result = run_verify(Path(args.source), payload["verdict"], resolved["llama-cli"])
+        verify_result = run_verify(Path(args.source), payload["verdict"], resolved[VERIFY_BINARY])
         payload["verify"] = {
             "outcome": verify_result.outcome,
-            "matched_patterns": verify_result.matched_patterns,
+            "signals": verify_result.signals.as_dict(),
+            "detail": verify_result.signals.describe(),
         }
 
     if args.json:
@@ -101,7 +110,7 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     else:
         _print_scan_text(payload, dominant)
 
-    if args.fail_on_miss and payload["verdict"] == FALLBACK_GENERIC:
+    if args.fail_on_miss and payload["verdict"] in KLEIDIAI_MISS_VERDICTS:
         return 3
     return 0
 
@@ -171,7 +180,7 @@ def _cmd_bench(args: argparse.Namespace) -> int:
 
     if args.gate:
         try:
-            baseline_data = json.loads(Path(args.gate).read_text())
+            baseline_data = json.loads(Path(args.gate).read_text(encoding="utf-8"))
         except OSError as exc:
             print(f"error: cannot read {args.gate}: {exc}", file=sys.stderr)
             return 2
@@ -192,7 +201,7 @@ def _cmd_bench(args: argparse.Namespace) -> int:
 def _cmd_report(args: argparse.Namespace) -> int:
     entries = load_results(Path(args.results_dir))
     rendered = render_markdown(entries, instance=args.instance)
-    Path(args.output).write_text(rendered)
+    Path(args.output).write_text(rendered, encoding="utf-8")
     print(f"wrote {args.output}")
 
     if args.plot:
@@ -213,11 +222,12 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     if args.out:
         out_path = Path(args.out)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(to_json(rows), indent=2))
+        out_path.write_text(json.dumps(to_json(rows), indent=2), encoding="utf-8")
     if args.md:
-        Path(args.md).write_text(to_markdown(rows))
+        Path(args.md).write_text(to_markdown(rows), encoding="utf-8")
 
     print(summary_line(rows))
+    print(bytes_line(rows))
     return 0
 
 
@@ -244,12 +254,12 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--fail-on-miss",
         action="store_true",
-        help="Exit 3 when the verdict is FALLBACK_GENERIC.",
+        help="Exit 3 when the model misses KleidiAI (NOT_KLEIDIAI_PATH or FALLBACK_GENERIC).",
     )
     scan.add_argument(
         "--verify",
         action="store_true",
-        help="Cross-check the verdict against llama-cli's load log (local files only).",
+        help="Cross-check the verdict against llama-bench -v's load log (local files only).",
     )
     scan.add_argument("--llama-bin-dir", default=None, help="Directory containing llama.cpp binaries.")
     scan.set_defaults(func=_cmd_scan)

@@ -59,7 +59,7 @@ server = FixtureHTTPServer()
 server.start()
 
 try:
-    # A q4_K fixture: FALLBACK_GENERIC, the miss this whole tool exists to find.
+    # A q4_K fixture: NOT_KLEIDIAI_PATH, the miss this whole tool exists to find.
     q4k_path = work / "q4k.gguf"
     write_gguf(
         q4k_path,

@@ -38,6 +38,8 @@ class ResultEntry:
     @property
     def instance(self) -> Optional[str]:
         instance = self.data.get("instance")
+        # The literal placeholder is still tolerated on read: results files
+        # written before the field became nullable carry it.
         return instance if instance and instance != "TODO(box)" else None
 
     def metric(self, name: str) -> Optional[Dict[str, Any]]:
@@ -60,7 +62,7 @@ def load_results(results_dir: Path) -> List[ResultEntry]:
     entries: List[ResultEntry] = []
     for path in sorted(Path(results_dir).glob("*.json")):
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
         if not isinstance(data, dict) or data.get("schema") != 1:
@@ -132,7 +134,7 @@ def headline_line(entries: List[ResultEntry], *, instance: str) -> str:
 
 
 def render_markdown(entries: List[ResultEntry], *, instance: Optional[str] = None) -> str:
-    instance = instance or "TODO(box)"
+    instance = instance or "not recorded"
     lines = [
         headline_line(entries, instance=instance),
         ATTRIBUTION_LINE,

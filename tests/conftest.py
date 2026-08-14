@@ -43,7 +43,7 @@ def gguf_q4_0_only(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def gguf_q4_k_only(tmp_path: Path) -> Path:
-    """All weight tensors are Q4_K -> should classify FALLBACK_GENERIC."""
+    """All weight tensors are Q4_K -> should classify NOT_KLEIDIAI_PATH."""
     path = tmp_path / "q4_k_only.gguf"
     write_gguf(
         path,

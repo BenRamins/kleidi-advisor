@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs the real ecosystem audit against data/hf-top-gguf.txt.
 #
-# Needs open network access to Hugging Face. This is RUNBOOK.md step 2b —
+# Needs open network access to Hugging Face. This is REPRODUCE.md step 3 —
 # the operator runs it by hand. The build agent that wrote this repo never
 # executes this script and never creates AUDIT.md itself (CLAUDE.md
 # guardrail): data/hf-top-gguf.txt is an unverified candidate list, and

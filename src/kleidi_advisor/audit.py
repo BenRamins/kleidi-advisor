@@ -10,11 +10,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
-from .compat import FALLBACK_GENERIC, classify
+from .compat import KLEIDIAI_MISS_VERDICTS, classify
 from .gguf import compute_dominant_type
 from .remote import RemoteScanError, fetch_and_read
 
 DEFAULT_DELAY_SECONDS = 1.0
+
+# Rendered for any null cell. Kept as a named constant because it is the one
+# non-ASCII character these writers emit, and writing it to a file opened in
+# the platform default encoding is exactly how AUDIT.md ended up full of
+# U+FFFD — every write here passes encoding="utf-8" explicitly.
+EM_DASH = "—"
 
 
 @dataclass
@@ -25,6 +31,31 @@ class AuditRow:
     dominant_type: Optional[str] = None
     bytes_fetched: Optional[int] = None
     error: Optional[str] = None
+
+    @property
+    def scanned(self) -> bool:
+        """A row that produced a classification. An unreachable URL did not,
+        and must never count toward the denominator of the headline claim.
+        """
+        return self.verdict is not None
+
+
+@dataclass
+class AuditCounts:
+    scanned: int
+    errors: int
+    misses: int
+    bytes_fetched: int
+
+
+def compute_counts(rows: List[AuditRow]) -> AuditCounts:
+    scanned = [r for r in rows if r.scanned]
+    return AuditCounts(
+        scanned=len(scanned),
+        errors=len(rows) - len(scanned),
+        misses=sum(1 for r in scanned if r.verdict in KLEIDIAI_MISS_VERDICTS),
+        bytes_fetched=sum(r.bytes_fetched or 0 for r in rows),
+    )
 
 
 def parse_list_file(path: Union[str, Path]) -> List[Tuple[str, str]]:
@@ -74,14 +105,56 @@ def run_audit(
 
 
 def summary_line(rows: List[AuditRow]) -> str:
-    misses = [r for r in rows if r.verdict == FALLBACK_GENERIC]
-    return f"{len(misses)} of {len(rows)} audited GGUFs fall back to generic kernels"
+    """The headline claim, and therefore the line most worth getting right.
+
+    The denominator is **rows that actually scanned**, not rows attempted: an
+    unreachable URL is not evidence that a model reaches KleidiAI or that it
+    misses, so counting it either way overstates what was measured. Errors are
+    reported alongside rather than folded in.
+
+    A miss is any weight type that does not reach KleidiAI's kernels — the
+    K-quants that take ggml's own CPU_REPACK path and the IQ types that take
+    neither. Saying "fall back to generic kernels" was measured wrong on
+    b10431 for K-quants (REFERENCE.md §4).
+    """
+    counts = compute_counts(rows)
+    line = (
+        f"{counts.misses} of {counts.scanned} successfully scanned GGUFs "
+        f"never reach KleidiAI's kernels"
+    )
+    if counts.errors:
+        plural = "URL" if counts.errors == 1 else "URLs"
+        line += f" ({counts.errors} {plural} unreachable, listed below)"
+    return line + "."
+
+
+def bytes_line(rows: List[AuditRow]) -> str:
+    """The ecosystem-measurement claim in one number: classifying a model costs
+    a header read, not a download.
+
+    Deliberately no "vs. N GB if downloaded in full" comparison. The audit
+    never fetches past the header, so it never sees a Content-Length for the
+    whole file, and inferring one from the quant type and parameter count
+    would be an estimate dressed as a measurement. A missing number beats a
+    wrong one.
+    """
+    counts = compute_counts(rows)
+    megabytes = counts.bytes_fetched / 1_000_000
+    return f"Classified {counts.scanned} models by fetching {megabytes:.1f} MB."
 
 
 def to_json(rows: List[AuditRow]) -> dict:
+    counts = compute_counts(rows)
     return {
         "schema": 1,
         "summary": summary_line(rows),
+        # Explicit so the headline's arithmetic is checkable without counting
+        # table rows: scanned_count + error_count == len(rows), and
+        # miss_count <= scanned_count.
+        "scanned_count": counts.scanned,
+        "error_count": counts.errors,
+        "miss_count": counts.misses,
+        "bytes_fetched_total": counts.bytes_fetched,
         "rows": [
             {
                 "label": r.label,
@@ -96,24 +169,36 @@ def to_json(rows: List[AuditRow]) -> dict:
     }
 
 
+def _cell(value: Optional[object]) -> str:
+    """Every markdown cell goes through here, so a null can never reach the
+    table as the string "None" or as a mojibake artefact.
+    """
+    return EM_DASH if value is None else str(value)
+
+
 def to_markdown(rows: List[AuditRow]) -> str:
     def sort_key(r: AuditRow):
-        if r.error is not None:
+        if not r.scanned:
             return (2, r.label)
-        return (0, r.label) if r.verdict == FALLBACK_GENERIC else (1, r.label)
+        return (0, r.label) if r.verdict in KLEIDIAI_MISS_VERDICTS else (1, r.label)
 
     lines = [
         "# Ecosystem audit",
         "",
         summary_line(rows),
         "",
+        bytes_line(rows),
+        "",
         "| label | verdict | dominant type | bytes fetched | url |",
         "|---|---|---|---|---|",
     ]
     for r in sorted(rows, key=sort_key):
-        if r.error is not None:
-            lines.append(f"| {r.label} | error | — | — | {r.url} |")
-        else:
-            lines.append(f"| {r.label} | {r.verdict} | {r.dominant_type} | {r.bytes_fetched} | {r.url} |")
+        # Unreachable rows keep the word "error" in the verdict column — the
+        # summary says they are listed below, so they have to be findable.
+        verdict = "error" if not r.scanned else r.verdict
+        lines.append(
+            f"| {_cell(r.label)} | {_cell(verdict)} | {_cell(r.dominant_type)} "
+            f"| {_cell(r.bytes_fetched)} | {_cell(r.url)} |"
+        )
     lines.append("")
     return "\n".join(lines)

@@ -13,8 +13,8 @@ except for this README — the box day fills this directory in, it does not ship
   "model": "llama-3.1-8b-q4_k_m.gguf",
   "tag": "baseline",
   "threads": 16,
-  "instance": "TODO(box)",
-  "llama_cpp_commit": "TODO(box)",
+  "instance": "Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads",
+  "llama_cpp_commit": "1692f9e50",
   "timestamp_utc": "2026-08-14T09:12:33Z",
   "argv": ["llama-bench", "-m", "...", "-p", "512", "-n", "128", "-r", "5", "-o", "json"],
   "metrics": {
@@ -25,4 +25,6 @@ except for this README — the box day fills this directory in, it does not ship
 }
 ```
 
-`ppl` is `null` when not measured.
+`ppl` is `null` when not measured. `instance` and `llama_cpp_commit` are `null` until supplied —
+`--instance` sets the first; the second is recorded by hand from `git rev-parse HEAD` in the
+llama.cpp checkout. `report` omits an instance label rather than inventing one.

@@ -144,13 +144,15 @@ def run_bench(
         "model": Path(gguf).name,
         "tag": tag,
         "threads": threads,
-        "instance": "TODO(box)",
-        "llama_cpp_commit": "TODO(box)",
+        # null, not a placeholder string: "not recorded" is data, and it
+        # reads the same way `ppl` does when perplexity was not measured.
+        "instance": None,
+        "llama_cpp_commit": None,
         "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "argv": argv,
         "metrics": {name: stats.to_dict() for name, stats in metrics.items()},
         "ppl": ppl_payload,
     }
-    results_path.write_text(json.dumps(payload, indent=2))
+    results_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     return BenchResult(metrics=metrics, argv=argv, results_path=results_path, ppl_value=ppl_value)

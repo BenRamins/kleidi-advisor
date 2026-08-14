@@ -65,6 +65,28 @@ def test_reveal_keeps_attribution_and_not_our_measurement_clause():
     assert "llama.cpp PR #9921" in TEXT
 
 
+def test_pr_anchor_is_demoted_not_quoted_as_the_expected_uplift():
+    # D-03 as amended 2026-08-14: the 2.5-2.9x figure predates the K-quant
+    # CPU_REPACK path, so the skill must not hand it to a user as what they
+    # should expect from `fix`.
+    assert "superseded" in TEXT
+    assert "Do **not** quote the older ~2.5–2.9× figure" in TEXT
+
+
+def test_both_miss_verdicts_have_a_branch_in_the_skill():
+    for verdict in ("NOT_KLEIDIAI_PATH", "FALLBACK_GENERIC", "OK_KLEIDIAI", "NOT_APPLICABLE"):
+        assert verdict in TEXT, f"skill body never mentions {verdict}"
+
+
+def test_measured_speedup_is_never_quoted_without_its_ppl_caveat():
+    # The no-bare-throughput rule holds in the skill too: the 1.61x figure and
+    # its quality cost live in one sentence, so the reveal can't be quoted
+    # half-way, and the caveat travels with the number.
+    assert "1.61×" in TEXT
+    assert "ppl cost of the switch: +0.049" in TEXT
+    assert "inside the error bars" in TEXT
+
+
 def test_no_banned_d11_phrasing():
     banned = re.compile(r"our (optimization|speedup)|we made it faster|we optimized", re.IGNORECASE)
     assert not banned.search(TEXT)
