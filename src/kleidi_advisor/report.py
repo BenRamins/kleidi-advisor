@@ -57,8 +57,14 @@ class ResultEntry:
 
 
 def load_results(results_dir: Path) -> List[ResultEntry]:
-    """Read every *.json in results_dir; anything without "schema": 1 —
-    including unparseable JSON — is skipped silently (Spec F4 rule 1)."""
+    """Read every *.json in results_dir; anything that is not a bench result —
+    including unparseable JSON — is skipped (Spec F4 rule 1).
+
+    "schema": 1 alone is not enough to identify a bench result: `audit --out`
+    writes its own schema-1 document into the same directory by default, and
+    without the `metrics` check it lands in the results table as a row of
+    question marks.
+    """
     entries: List[ResultEntry] = []
     for path in sorted(Path(results_dir).glob("*.json")):
         try:
@@ -66,6 +72,8 @@ def load_results(results_dir: Path) -> List[ResultEntry]:
         except (OSError, json.JSONDecodeError):
             continue
         if not isinstance(data, dict) or data.get("schema") != 1:
+            continue
+        if not isinstance(data.get("metrics"), dict):
             continue
         entries.append(ResultEntry(data))
     return entries

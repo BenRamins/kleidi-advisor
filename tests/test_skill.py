@@ -79,12 +79,20 @@ def test_both_miss_verdicts_have_a_branch_in_the_skill():
 
 
 def test_measured_speedup_is_never_quoted_without_its_ppl_caveat():
-    # The no-bare-throughput rule holds in the skill too: the 1.61x figure and
-    # its quality cost live in one sentence, so the reveal can't be quoted
-    # half-way, and the caveat travels with the number.
-    assert "1.61×" in TEXT
-    assert "ppl cost of the switch: +0.049" in TEXT
-    assert "inside the error bars" in TEXT
+    """The no-bare-throughput rule, enforced per *physical line*.
+
+    Checking the whole document for both strings is too weak: a blockquote that
+    word-wraps between the ratio and its quality cost still lets an agent quote
+    one line and emit a bare speedup. Every line carrying a `×` ratio must carry
+    the ppl figure too.
+    """
+    ratio_lines = [line for line in TEXT.splitlines() if "×" in line and "1.61" in line]
+    assert ratio_lines, "the measured ratio is missing from the skill"
+    for line in ratio_lines:
+        assert "ppl" in line, f"speed figure with no quality cost on the same line: {line.strip()!r}"
+        assert "+0.049" in line, f"ppl mentioned without its value: {line.strip()!r}"
+    # And the caveat that the delta is inside the error bars survives somewhere.
+    assert "error bars" in " ".join(TEXT.split())
 
 
 def test_no_banned_d11_phrasing():

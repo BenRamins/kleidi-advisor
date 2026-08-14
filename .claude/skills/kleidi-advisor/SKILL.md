@@ -1,6 +1,6 @@
 ---
 name: kleidi-advisor
-description: Diagnose whether a GGUF model reaches Arm's KleidiAI Q4_0 kernel-path or silently falls back to generic kernels. Trigger on GGUF, KleidiAI, llama.cpp on Arm or Graviton, or "why is my model slow on Arm/Graviton".
+description: Diagnose whether a GGUF model reaches Arm's KleidiAI Q4_0 kernel-path or falls back to a slower one, from a URL and before downloading it. Trigger on GGUF, KleidiAI, llama.cpp on Arm or Graviton, or "why is my model slow on Arm/Graviton".
 ---
 
 # kleidi-advisor — Arm KleidiAI kernel-path advisor
@@ -13,12 +13,17 @@ When a user mentions a GGUF model, KleidiAI, or asks why their model is slow on 
 2. If the verdict is `NOT_KLEIDIAI_PATH` (K-quants — the common case), deliver the reveal:
 
    > This model never reaches Arm's KleidiAI kernels. It isn't unoptimised — K-quants take ggml's
-   > own aarch64 repack path (`CPU_REPACK`), which is why nothing in the log looks wrong — but that
-   > path measured 1.61× slower at pp512 than Q4_0 on Arm Neoverse-N2 (Azure Cobalt 100, llama.cpp
-   > b10431; ppl cost of the switch: +0.049, inside the error bars of both runs — measure yours with
-   > `bench --perplexity`). It's a
-   > common state: our audit found 13 of 17 scannable widely-published GGUFs missing the path —
-   > including all 7 Q4_K_M files in the list, from all 5 publishers that ship one.
+   > own aarch64 repack path (`CPU_REPACK`) — but that path is the slower one:
+   > **1.61× slower at pp512, at a +0.049 ppl cost (inside both runs' error bars)**, measured on Arm
+   > Neoverse-N2 (Azure Cobalt 100, llama.cpp b10431). Measure yours with `bench --perplexity`.
+   >
+   > llama.cpp does warn about this at load time — `kleidiai: no kernel for tensor type q4_K, not
+   > accelerated by KleidiAI` — but only after the model is downloaded and loaded, and without any
+   > indication of what the slower path costs. `scan` answers the same question from a URL before
+   > the download, with the measured number attached.
+   >
+   > It's a common state: our audit found 13 of 17 scannable widely-published GGUFs missing the
+   > path — including all 7 Q4_K_M files in the list, from all 5 publishers that ship one.
 
    Do **not** quote the older ~2.5–2.9× figure from llama.cpp PR #9921 as what the user should
    expect: it predates the K-quant repack path, so it compares against a fallback this model isn't

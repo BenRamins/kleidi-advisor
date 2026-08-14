@@ -21,7 +21,8 @@ for the row-by-row table and `results/audit.json` for the explicit scanned/error
 
 Both common quantization formats are accelerated on Arm — but only one of them reaches Arm's
 KleidiAI kernels. Qwen2.5-7B-Instruct on Azure Standard_E8ps_v6 (Cobalt 100, Arm Neoverse-N2),
-llama.cpp build `1692f9e50` (b10431), 8 threads:
+llama.cpp build `1692f9e50` (b10431), 8 threads. Both files are Qwen's own published builds from
+one repository, so the quantization type is the only variable between them (§5):
 
 | format | pp512 (tok/s) | tg128 (tok/s) | PPL (WikiText-2, 100 chunks) | load path taken |
 |---|---|---|---|---|
@@ -31,8 +32,8 @@ llama.cpp build `1692f9e50` (b10431), 8 threads:
 **1.61× prompt processing at +0.049 perplexity — a 0.6% quality cost that sits inside the error bars
 of both measurements.** That is a statement about resolution, not equivalence: this run cannot
 distinguish the two models' quality, which is not the same as showing they are identical. Token
-generation gains 1.11×, less than prompt processing because it is memory-bandwidth-bound rather than
-compute-bound.
+generation gains less — 1.11× at the same +0.049 ppl — because it is memory-bandwidth-bound
+rather than compute-bound.
 
 The interesting part is *not* that Q4_0 is faster. It's that the widely-repeated shorthand — "K-quants
 are unaccelerated on Arm" — is false, and it was this repo's own starting assumption too. K-quants
@@ -43,18 +44,45 @@ Speedup comes from Arm's KleidiAI kernels; this tool detects the miss and measur
 
 ## 2. Why Nobody Notices
 
-The miss is silent, and it is silent in a way that defeats casual inspection twice over. A K-quant
-(or IQ-quant) GGUF loads fine, runs fine, and produces correct output on an Arm box — it just never
-reaches KleidiAI's kernels, with no error, no warning, and nothing in the file to indicate it.
-`general.file_type` doesn't tell you either — corroborating metadata, not a compatibility signal.
+**llama.cpp tells you.** Loading a Q4_K_M model on this build logs a warning that is clear, correct,
+and exactly on point:
 
-Worse, the load log *looks* like it says the fast path was taken. On b10431 a Q4_K_M model prints
-`repack: repack tensor blk.N.attn_q.weight with q4_K_8x8` — real repacking, just ggml's own, not
-KleidiAI's — and both formats print `cannot be used with preferred buffer type CPU_KLEIDIAI, using
-CPU instead`, a line containing the word KleidiAI that means the opposite of what it looks like.
-Grepping the log for "repack" or "kleidi" tells you a model is accelerated when it isn't. The signal
-that actually separates the paths is which model buffer the tensors land in, and it only prints
-under `-v`. That is what `scan` and `scan --verify` check.
+```
+kleidiai: no kernel for tensor type q4_K, not accelerated by KleidiAI
+```
+
+So this is not a case of information being withheld, and this tool is not here to surface a hidden
+fact. The problem is *when* that warning arrives, *where* it sits, and what it leaves out:
+
+- **It arrives after the decision it should have informed.** The warning is emitted at load time —
+  which is after you chose a quantization, downloaded several GB of it, and started a run. The
+  choice it bears on was made hours earlier, from a repository file listing that says nothing about
+  kernel paths.
+- **It sits in the middle of startup output.** It scrolls past among the loader's KV-pair dump and
+  tensor summaries, on the way to the first token. Nothing about it is louder than the lines around
+  it, and by the time output appears the model is already running correctly — which is precisely
+  when a person stops reading logs.
+- **It quantifies nothing.** "not accelerated by KleidiAI" is true and gives you no way to judge
+  whether it matters. Is the other path 2% slower or 2× slower? Worth a requantization or not? The
+  warning cannot say, because it does not know what the alternative costs on this CPU. On Neoverse-N2
+  the answer turned out to be 1.61× at pp512 for +0.049 ppl (§1) — a number that had to be
+  measured, not read.
+- **The surrounding log punishes the obvious shortcut.** Grepping for `kleidi` matches the warning
+  above *and* the line `cannot be used with preferred buffer type CPU_KLEIDIAI, using CPU instead`,
+  which both formats emit and which means the opposite of how it reads. Grepping for `repack` matches
+  `repack: repack tensor blk.N.attn_q.weight with q4_K_8x8` — real repacking, just ggml's own rather
+  than KleidiAI's. Either grep reports acceleration on a model that never reached KleidiAI. The
+  signal that actually separates the paths is which model buffer the tensors land in, and it prints
+  only under `-v`.
+
+Nor does the file itself help: `general.file_type` is corroborating metadata, not a compatibility
+signal, so nothing you can inspect before downloading answers the question.
+
+That is the gap `scan` fills. It answers the same question **from a URL, before the download** — a
+few MB of HTTP range requests against the GGUF header rather than a few GB of model — and attaches
+the measured cost of the path it finds. `scan --verify` then checks that prediction against the real
+load log on the machine in front of you (§7). Same fact llama.cpp already knows, moved to the point
+where it can still change what you download.
 
 ## 3. What This Is / Is Not
 
@@ -71,7 +99,7 @@ Five commands, on an Arm box, ending in a verified scan:
 ```bash
 pip install -e ".[dev]"
 kleidi-advisor scan your-model.gguf
-kleidi-advisor fix your-model-f16.gguf --calib wiki.train.raw -o fixed-q4_0.gguf
+kleidi-advisor fix your-model-f16.gguf --calib wiki.test.raw -o fixed-q4_0.gguf
 kleidi-advisor bench fixed-q4_0.gguf --threads "$(nproc)" --tag fixed
 kleidi-advisor scan fixed-q4_0.gguf --verify --llama-bin-dir path/to/llama.cpp/build/bin
 ```
@@ -87,21 +115,64 @@ N2), 8 threads.**
 | model | tag | threads | pp512 (tok/s) | tg128 (tok/s) | PPL |
 |---|---|---|---|---|---|
 | qwen2.5-7b-instruct-q4_k_m | baseline | 8 | 44.47 ± 0.05 | 15.85 ± 0.03 | 8.1728 ± 0.14245 |
-| qwen2.5-7b-instruct-q4_0 | fixed | 8 | 71.48 ± 0.12 | 17.56 ± 0.03 | 8.2215 ± 0.14170 |
+| qwen2.5-7b-instruct-q4_0 | qwen-published-q4_0 | 8 | 71.48 ± 0.12 | 17.56 ± 0.03 | 8.2215 ± 0.14170 |
+| qwen-imatrix-q4_0 | imatrix-fix | 8 | 66.65 ± 0.12 | 17.13 ± 0.04 | 8.1525 |
 
-| | pp512 | tg128 | PPL |
+| vs. baseline | pp512 | tg128 | PPL |
 |---|---|---|---|
-| **fixed ÷ baseline** | **1.61×** | **1.11×** | **+0.049 (+0.6%)** |
+| **qwen-published-q4_0** — the headline | **1.61×** | **1.11×** | **+0.049 (+0.6%)** |
+| `imatrix-fix` — our own `fix` output | 1.50× | 1.08× | −0.020, see caveats below |
+
+**The headline is the two Qwen-published builds, deliberately.** `qwen-published-q4_0` is
+`qwen2.5-7b-instruct-q4_0.gguf` from the same repository as the Q4_K_M baseline — one publisher, one
+fp16 lineage, quantization type the only variable, and nothing calibrated by us anywhere in it. That
+is the honest ecosystem claim: this is what a user gets by downloading the other file already on the
+page. The `imatrix-fix` row is *our* artifact and carries two caveats the headline does not.
+
+**Caveat 1 — the −0.020 ppl is contaminated and is not evidence that imatrix improves quality.** The
+importance matrix was calibrated on `wiki.test.raw` and perplexity was then evaluated on
+`wiki.test.raw`: the same file. Calibrating on the evaluation set very likely flatters that number,
+so it must not be read as a quality gain. `wiki.train.raw` exists and calibrating on it would remove
+the overlap entirely; there was not time to re-run before submission. Note also that −0.020 is an
+order of magnitude smaller than the ±0.14 uncertainty on the other two perplexity measurements, so
+even without the contamination this run could not resolve a difference that size.
+
+**Caveat 2 — unexplained: our imatrix Q4_0 is 6.8% slower at pp512 than Qwen's published Q4_0**
+(66.65 vs 71.48 tok/s), although both are Q4_0 and both land in a `CPU_KLEIDIAI` buffer. **We did not
+investigate this.** Candidates worth checking, named as candidates and not as conclusions: per-tensor
+precision choices made under imatrix guidance, and how the output and token-embedding tensors were
+handled during quantization. Anyone reproducing this work should treat the gap as open — it is the
+first thing we would look at with more time, and it means `fix` should not yet be presented as
+matching a well-made published Q4_0 on speed.
+
+The quality gate passed on its own terms: candidate 8.1525 against baseline 8.1728, `--max-delta 0.3`
+— but see caveat 1 before reading anything into the direction of that difference.
 
 Environment: llama.cpp `1692f9e50` (b10431), built `-DGGML_CPU_KLEIDIAI=ON -DGGML_NATIVE=ON`.
-Perplexity is WikiText-2 raw at `--chunks 100`, the same corpus and chunk count on both sides.
+Perplexity is WikiText-2 raw at `--chunks 100`, the same corpus and chunk count on all three rows.
+The `imatrix-fix` perplexity was recorded without an uncertainty figure; the other two carry theirs.
 
-Read the quality column carefully. The +0.049 perplexity gap is smaller than the ±0.14 uncertainty
-on either measurement, so this run **cannot resolve** a quality difference between the two models —
-which is a limit on what was measured, not a demonstration that the models are equivalent. A longer
-corpus pass could separate them. This section is what `kleidi-advisor report --instance "Azure
-Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads" --plot results/plot.png` renders from
-`results/*.json`; `report` will not emit a throughput figure without its perplexity neighbour.
+Read the quality column carefully. The headline's +0.049 perplexity gap is smaller than the ±0.14
+uncertainty on either measurement, so this run **cannot resolve** a quality difference between the
+two published builds — a limit on what was measured, not a demonstration that they are equivalent. A
+longer corpus pass could separate them.
+
+<!-- PENDING-PROVENANCE: this sentence claims results/*.json exists. It does not yet — the numbers
+     above were produced by invoking llama-bench and llama-perplexity by hand. Un-comment it only
+     once `kleidi-advisor bench` has written schema-1 result files into results/, which
+     tests/test_readme.py arbitrates automatically: the test fails if this claim is visible while
+     results/ is still empty. If results/ is still empty at commit time, delete these lines.
+
+     This section is what `kleidi-advisor report --instance "Azure Standard_E8ps_v6 (Cobalt 100,
+     Neoverse N2), 8 threads"` renders from `results/*.json`; `report` will not emit a throughput
+     figure without its perplexity neighbour.
+-->
+
+How these numbers were produced: the two published-build rows by invoking `llama-bench` and
+`llama-perplexity` directly on the machine described above; the `imatrix-fix` row through
+`kleidi-advisor fix` and `kleidi-advisor bench --gate`, whose gate verdict is quoted verbatim above.
+The schema-1 result files `bench` wrote are not in this repository, so this table is transcribed
+rather than rendered by `kleidi-advisor report` — see the marker above.
 
 ## 6. How It Works
 
@@ -158,8 +229,11 @@ Q4_K_M: load_tensors:   CPU_REPACK model buffer size = 4166.82 MiB
 
 That is the whole finding in four lines. The Q4_0 model gets a KleidiAI buffer and an i8mm kernel;
 the Q4_K_M model is told in as many words that no KleidiAI kernel exists for its tensor type, and
-lands in ggml's own repack buffer instead. Both models load, run, and answer correctly either way —
-nothing above is an error, which is exactly why the miss goes unnoticed.
+lands in ggml's own repack buffer instead.
+
+Note the fourth line: llama.cpp is not hiding this. It states the miss plainly, at warning level.
+What it cannot tell you is what the miss costs, or tell you early enough to pick a different file —
+which is the whole of §2, and the whole reason `scan` reads headers over HTTP instead.
 
 ## 8. What We Got Wrong
 
@@ -173,9 +247,9 @@ IQ-quant "has no Arm repack path" and runs generic kernels. The predicted uplift
 
 **What b10431 actually does:** three outcomes. Q4_0 gets a `CPU_KLEIDIAI` buffer; Q4_K_M gets a
 `CPU_REPACK` buffer and per-tensor `q4_K_8x8` repacking — ggml's own aarch64 path, added since that
-PR — and everything else gets neither. The measured Q4_0-vs-Q4_K_M gap on Neoverse-N2 is 1.61×
-pp512, not 2.5–2.9×, because the comparison is no longer optimised-vs-generic. It's
-optimised-vs-differently-optimised. The PR #9921 anchor is kept in this repo only as historical
+PR — and everything else gets neither. The measured Q4_0-vs-Q4_K_M gap on Neoverse-N2 is
+1.61× pp512 at +0.049 ppl, not 2.5–2.9×, because the comparison is no longer
+optimised-vs-generic. It's optimised-vs-differently-optimised. The PR #9921 anchor is kept in this repo only as historical
 context and is explicitly superseded by the measurement in §1.
 
 **What that broke in this tool, and how it was caught:** the original `--verify` matched substrings
@@ -206,7 +280,7 @@ to establish how large the gap is in general.
   SVE_CNT = 16 | OPENMP = 1 | KLEIDIAI = 1 | REPACK = 1
   ```
   `MATMUL_INT8 = 1` is why the i8mm microkernel was selected. A CPU family without it (e.g. Ampere
-  Altra / Neoverse-N1) will not reproduce 1.61×, in either direction.
+  Altra / Neoverse-N1) will not reproduce 1.61× at +0.049 ppl, in either direction.
 - **One model.** Qwen2.5-7B-Instruct only. Architecture and tensor shapes affect how much of the
   runtime is in the matmuls KleidiAI accelerates, so the ratio is not portable to other models.
 - **One build.** llama.cpp `1692f9e50` (b10431). The classification table is static and pinned to

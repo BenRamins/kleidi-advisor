@@ -9,10 +9,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-from .binaries import resolve_binaries, run_binary
+from .binaries import BinaryTimeout, resolve_binaries, run_binary
 from .gguf import compute_dominant_type, read_gguf
 
 REQUIRED_BINARIES = ["llama-imatrix", "llama-quantize", "llama-cli"]
+
+# `-st` (single-turn) makes llama-cli answer the prompt and exit. Without it,
+# a `-p ... -n ...` invocation finishes generating and then opens an
+# interactive chat turn, blocking on stdin forever — confirmed hanging on the
+# box. run_binary's DEVNULL stdin already prevents the block; this flag means
+# we are not relying on that alone, on a build where the flag might be spelled
+# differently or the behaviour might change.
+SMOKE_ARGS = ["-p", "The", "-n", "8", "-st"]
+
+# A generation of 8 tokens that has not finished in five minutes is stuck, not
+# slow — even on a small CPU-only instance. Bounded so a stall surfaces as a
+# named failure instead of an unattended run that never returns.
+SMOKE_TIMEOUT_SECONDS = 300
 
 # D-10: requanting a K-quant directly would double-quantize and poison the
 # quality story, so fix only accepts an F16/BF16 source.
@@ -31,6 +44,23 @@ class FixStageError(Exception):
         self.returncode = returncode
         self.stderr = stderr
         super().__init__(f"{stage} failed (exit {returncode}): {stderr.strip() or '(no stderr)'}")
+
+
+class FixStageTimeout(FixStageError):
+    """A stage stalled rather than failed.
+
+    Subclasses FixStageError so it keeps the same exit code (4, subprocess
+    stage failure) while reporting a stall as a stall — the two have very
+    different causes and the message must not blur them.
+    """
+
+    def __init__(self, stage: str, timeout: float, hint: str):
+        self.stage = stage
+        self.returncode = None
+        self.stderr = ""
+        Exception.__init__(
+            self, f"{stage} timed out after {timeout:g}s and was killed. {hint}"
+        )
 
 
 @dataclass
@@ -98,12 +128,21 @@ def run_fix(
     if result.returncode != 0:
         raise FixStageError("llama-quantize", result.returncode, result.stderr)
 
-    result = run_binary(
-        binaries["llama-cli"],
-        ["-m", str(output), "-p", "The", "-n", "8"],
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = run_binary(
+            binaries["llama-cli"],
+            ["-m", str(output), *SMOKE_ARGS],
+            capture_output=True,
+            text=True,
+            timeout=SMOKE_TIMEOUT_SECONDS,
+        )
+    except BinaryTimeout:
+        raise FixStageTimeout(
+            "llama-cli smoke generation",
+            SMOKE_TIMEOUT_SECONDS,
+            f"The quantized model was written to {output} — only the smoke check stalled, so "
+            "the artifact is probably fine; verify it with `kleidi-advisor scan` before use.",
+        ) from None
     if result.returncode != 0:
         raise FixStageError("llama-cli", result.returncode, result.stderr)
 

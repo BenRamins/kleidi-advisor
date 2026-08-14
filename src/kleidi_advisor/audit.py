@@ -1,6 +1,8 @@
 """Ecosystem audit — Spec F7. Runs the head-only remote scan over a list of
-GGUF URLs and reports how often the ecosystem silently misses Arm's
-KleidiAI kernel path. One dead URL must never abort the whole run.
+GGUF URLs and reports how often the ecosystem misses Arm's KleidiAI kernel
+path. llama.cpp does warn about the miss, but only at load time, after the
+download — the point of scanning by URL is to answer the same question before
+anyone spends the bandwidth. One dead URL must never abort the whole run.
 """
 
 from __future__ import annotations
