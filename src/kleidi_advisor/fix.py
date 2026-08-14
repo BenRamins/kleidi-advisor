@@ -57,8 +57,12 @@ def run_fix(
     *,
     no_imatrix: bool = False,
     llama_bin_dir: Optional[str] = None,
+    chunks: Optional[int] = None,
 ) -> FixResult:
-    """Spec F2 rule 2 happy path, rules 3-4 for --no-imatrix and D-10 refusal."""
+    """Spec F2 rule 2 happy path, rules 3-4 for --no-imatrix and D-10 refusal.
+    D-15: --chunks caps llama-imatrix's corpus pass so an 8-core box doesn't
+    spend hours on the full calibration corpus.
+    """
     _check_source_is_f16_or_bf16(source)
 
     if not no_imatrix and calib is None:
@@ -70,9 +74,12 @@ def run_fix(
     used_imatrix = not no_imatrix
 
     if used_imatrix:
+        imatrix_args = ["-m", str(source), "-f", str(calib), "-o", str(imatrix_path)]
+        if chunks is not None:
+            imatrix_args += ["--chunks", str(chunks)]
         result = run_binary(
             binaries["llama-imatrix"],
-            ["-m", str(source), "-f", str(calib), "-o", str(imatrix_path)],
+            imatrix_args,
             capture_output=True,
             text=True,
         )

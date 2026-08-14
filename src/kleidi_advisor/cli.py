@@ -113,7 +113,12 @@ def _cmd_fix(args: argparse.Namespace) -> int:
 
     try:
         result = run_fix(
-            source, calib, output, no_imatrix=args.no_imatrix, llama_bin_dir=args.llama_bin_dir
+            source,
+            calib,
+            output,
+            no_imatrix=args.no_imatrix,
+            llama_bin_dir=args.llama_bin_dir,
+            chunks=args.chunks,
         )
     except FixInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -153,6 +158,7 @@ def _cmd_bench(args: argparse.Namespace) -> int:
             llama_bin_dir=args.llama_bin_dir,
             perplexity=args.perplexity,
             calib=Path(args.calib) if args.calib else None,
+            chunks=args.chunks,
         )
     except BinaryResolutionError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -263,6 +269,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-imatrix", action="store_true", help="Skip the imatrix step (plain Q4_0, no calib needed)."
     )
     fix.add_argument("--llama-bin-dir", default=None, help="Directory containing llama.cpp binaries.")
+    fix.add_argument(
+        "--chunks", type=int, default=None, help="Cap llama-imatrix's corpus pass (D-15)."
+    )
     fix.set_defaults(func=_cmd_fix)
 
     bench = subparsers.add_parser(
@@ -286,6 +295,9 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--gate", default=None, help="Baseline results JSON to gate this run's ppl against.")
     bench.add_argument(
         "--max-delta", type=float, default=0.3, help="Max allowed |candidate ppl - baseline ppl|."
+    )
+    bench.add_argument(
+        "--chunks", type=int, default=None, help="Cap llama-perplexity's corpus pass (D-15)."
     )
     bench.set_defaults(func=_cmd_bench)
 

@@ -99,10 +99,14 @@ def run_bench(
     llama_bin_dir: Optional[str] = None,
     perplexity: bool = False,
     calib: Optional[Path] = None,
+    chunks: Optional[int] = None,
 ) -> BenchResult:
     """D-07 bench matrix: pp512 + tg128, JSON out, median + population stdev.
     Spec F3 rule 2: with `perplexity=True`, also runs llama-perplexity and
     stores the result under `ppl` — the pairing D-14 requires downstream.
+    D-15: --chunks caps llama-perplexity's corpus pass; the value is recorded
+    in the results schema's `ppl.chunks` field so README can cite it next to
+    the ppl delta.
     """
     required = list(REQUIRED_BENCH_BINARIES)
     if perplexity:
@@ -123,13 +127,15 @@ def run_bench(
     ppl_value: Optional[float] = None
     if perplexity:
         ppl_args = ["-m", str(gguf), "-f", str(calib), "-t", str(threads)]
+        if chunks is not None:
+            ppl_args += ["--chunks", str(chunks)]
         ppl_result = run_binary(binaries["llama-perplexity"], ppl_args, capture_output=True, text=True)
         if ppl_result.returncode != 0:
             raise BenchParseError(
                 f"llama-perplexity exited {ppl_result.returncode}: {ppl_result.stderr.strip()}"
             )
         ppl_value = parse_ppl(ppl_result.stdout + "\n" + ppl_result.stderr)
-        ppl_payload = {"value": ppl_value, "corpus": str(calib), "chunks": None}
+        ppl_payload = {"value": ppl_value, "corpus": str(calib), "chunks": chunks}
 
     results_dir.mkdir(parents=True, exist_ok=True)
     results_path = results_dir / f"{Path(gguf).stem}-{tag}.json"

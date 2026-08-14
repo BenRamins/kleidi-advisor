@@ -50,12 +50,13 @@ quality gate, and submission steps — is in [`RUNBOOK.md`](RUNBOOK.md).
 
 ## 5. Results
 
-**TODO(box)**: headline (`<X.X>× pp512 at <+0.0X> ppl`), results table, plot, instance type, and
-llama.cpp commit SHA all land here after RUNBOOK.md steps 4-7 run on the real box — `kleidi-advisor
-report --instance <type> --plot results/plot.png` generates the table and chart from
-`results/*.json` directly; this section is that command's output, pasted in. Every throughput
-figure below is printed next to its perplexity delta on the same line, never alone — if it isn't,
-that's a bug in `report`, not a stylistic choice.
+**TODO(box)**: headline (`<X.X>× pp512 at <+0.0X> ppl, --chunks 100`), results table, plot,
+instance type, and llama.cpp commit SHA all land here after RUNBOOK.md steps 4-7 run on the real
+box — `kleidi-advisor report --instance "Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8
+threads" --plot results/plot.png` generates the table and chart from `results/*.json` directly;
+this section is that command's output, pasted in. Every throughput figure below is printed next to
+its perplexity delta *and* the chunk count it was measured over (D-15) on the same line, never
+alone — if it isn't, that's a bug in `report`, not a stylistic choice.
 
 ## 6. How It Works
 
@@ -93,10 +94,15 @@ TODO(box) — RUNBOOK.md step 3 pastes both `kleidi-advisor scan <model> --verif
 - The `OK_KLEIDIAI`/`FALLBACK_GENERIC`/`NOT_APPLICABLE` classification table is static and
   version-pinned to the llama.cpp commit recorded in §7 — a different build can disagree, which is
   exactly what `--verify` is for.
-- Bench numbers are measured on one instance family (see §5) — the KleidiAI uplift is real Arm
-  work, and its magnitude varies with which CPU features (i8mm, SVE, dotprod) are present.
-- Perplexity is measured on one corpus (WikiText-2 raw) — a quality delta on a different corpus or
-  task may differ.
+- Bench numbers are measured on one 8-vCPU Arm Neoverse-N2 VM (Azure Standard_E8ps_v6, Cobalt 100)
+  — the KleidiAI uplift is real Arm work, and its magnitude varies with which CPU features (i8mm,
+  sve2, dotprod) are present; **TODO(box)**: confirm whether this box's `lscpu` actually showed
+  i8mm/sve2 (RUNBOOK.md step 1) — if either was absent, this ran on Ampere Altra (Neoverse-N1)
+  instead of Cobalt 100, and the delta above is smaller than a Cobalt 100/Neoverse-N2 run would show.
+- Perplexity is measured on a truncated WikiText-2 raw sample — D-15 caps the corpus pass at
+  `--chunks 100` (imatrix uses `--chunks 50`) so an 8-core box finishes in a reasonable time; the
+  chunk count is printed next to the ppl delta in §5, and absolute PPL here is not comparable to
+  figures published over the full corpus.
 - `data/hf-top-gguf.txt` is a hand-assembled list of widely-published GGUF repositories, not a
   download-ranked "top 20" — no popularity or download-count claim is made anywhere in this repo.
 
