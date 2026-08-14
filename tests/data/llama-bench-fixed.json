@@ -1,0 +1,28 @@
+[
+  {
+    "build_commit": "TESTFIXTURE",
+    "model_filename": "llama-3.1-8b-imatrix-q4_0.gguf",
+    "model_size": 4700000000,
+    "n_threads": 16,
+    "n_prompt": 512,
+    "n_gen": 0,
+    "avg_ns": 440000000,
+    "stddev_ns": 9000000,
+    "avg_ts": 1163.72,
+    "stddev_ts": 1.15,
+    "samples_ts": [1162.0, 1163.1, 1163.8, 1164.5, 1165.2]
+  },
+  {
+    "build_commit": "TESTFIXTURE",
+    "model_filename": "llama-3.1-8b-imatrix-q4_0.gguf",
+    "model_size": 4700000000,
+    "n_threads": 16,
+    "n_prompt": 0,
+    "n_gen": 128,
+    "avg_ns": 4250000000,
+    "stddev_ns": 6000000,
+    "avg_ts": 30.1,
+    "stddev_ts": 0.14,
+    "samples_ts": [29.9, 30.0, 30.12, 30.2, 30.3]
+  }
+]

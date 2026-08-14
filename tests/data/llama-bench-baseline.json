@@ -1,0 +1,28 @@
+[
+  {
+    "build_commit": "TESTFIXTURE",
+    "model_filename": "llama-3.1-8b-q4_k_m.gguf",
+    "model_size": 4920000000,
+    "n_threads": 16,
+    "n_prompt": 512,
+    "n_gen": 0,
+    "avg_ns": 1234000000,
+    "stddev_ns": 12000000,
+    "avg_ts": 415.1,
+    "stddev_ts": 0.42,
+    "samples_ts": [414.5, 414.9, 415.1, 415.3, 415.7]
+  },
+  {
+    "build_commit": "TESTFIXTURE",
+    "model_filename": "llama-3.1-8b-q4_k_m.gguf",
+    "model_size": 4920000000,
+    "n_threads": 16,
+    "n_prompt": 0,
+    "n_gen": 128,
+    "avg_ns": 4500000000,
+    "stddev_ns": 8000000,
+    "avg_ts": 28.44,
+    "stddev_ts": 0.19,
+    "samples_ts": [28.1, 28.4, 28.5, 28.6, 28.6]
+  }
+]
