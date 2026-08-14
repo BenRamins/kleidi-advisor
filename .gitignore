@@ -21,6 +21,9 @@ __pycache__/
 *.egg-info/
 results/*
 !results/README.md
+# Result JSONs are evidence, not scratch: README cites results/audit.json for the
+# audit counts and §5 is rendered from the bench results, so both have to ship.
+!results/*.json
 *.gguf
 AUDIT.md
 RESULTS.md

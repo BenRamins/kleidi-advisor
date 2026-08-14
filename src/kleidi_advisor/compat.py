@@ -28,7 +28,8 @@ KLEIDIAI_MISS_VERDICTS = frozenset({NOT_KLEIDIAI_PATH, FALLBACK_GENERIC})
 _REASON_OK_KLEIDIAI = "Q4_0 weights are repacked at load time into Arm-optimised kernels (i8mm/dotprod)."
 _REASON_NOT_KLEIDIAI_PATH = (
     "K-quant weights are repacked by ggml's own aarch64 path (CPU_REPACK), not KleidiAI's "
-    "i8mm kernels; measured 1.61x slower at pp512 on Neoverse N2."
+    "i8mm kernels; measured 1.61x slower at pp512 on Neoverse N2 "
+    "(+0.049 ppl, WikiText-2 100 chunks)."
 )
 _REASON_FALLBACK_GENERIC = (
     "No CPU_KLEIDIAI and no CPU_REPACK model buffer observed for this weight type; "

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import statistics
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -89,6 +90,34 @@ class BenchResult:
     ppl_value: Optional[float] = None
 
 
+def detect_llama_cpp_commit(binary_path: Path) -> Optional[str]:
+    """Best-effort short SHA of the llama.cpp checkout a binary came from.
+
+    Walks up from the binary looking for a git repository — `build/bin/llama-bench`
+    sits two levels below the checkout root in the documented build. Returns None
+    on any failure at all: an unrecorded commit is honest, a guessed one is not,
+    and a bench run must never fail because provenance lookup did.
+    """
+    try:
+        start = Path(binary_path).resolve()
+    except OSError:
+        return None
+    for candidate in start.parents:
+        if not (candidate / ".git").exists():
+            continue
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(candidate), "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+        return None
+    return None
+
+
 def run_bench(
     gguf: Path,
     *,
@@ -100,6 +129,7 @@ def run_bench(
     perplexity: bool = False,
     calib: Optional[Path] = None,
     chunks: Optional[int] = None,
+    instance: Optional[str] = None,
 ) -> BenchResult:
     """D-07 bench matrix: pp512 + tg128, JSON out, median + population stdev.
     Spec F3 rule 2: with `perplexity=True`, also runs llama-perplexity and
@@ -144,10 +174,14 @@ def run_bench(
         "model": Path(gguf).name,
         "tag": tag,
         "threads": threads,
-        # null, not a placeholder string: "not recorded" is data, and it
-        # reads the same way `ppl` does when perplexity was not measured.
-        "instance": None,
-        "llama_cpp_commit": None,
+        # Recorded, not placeheld. `instance` comes from --instance and the
+        # commit from the llama.cpp checkout the binary was built in; either is
+        # null when genuinely unavailable, which reads the same way `ppl` does
+        # when perplexity was not measured. A literal placeholder string here
+        # is what put an unfilled-slot token into shipped result files once
+        # already; report.py still tolerates that legacy value on read.
+        "instance": instance,
+        "llama_cpp_commit": detect_llama_cpp_commit(binaries["llama-bench"]),
         "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "argv": argv,
         "metrics": {name: stats.to_dict() for name, stats in metrics.items()},

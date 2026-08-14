@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
+from kleidi_advisor import compat
 from kleidi_advisor.compat import (
     FALLBACK_GENERIC,
     KLEIDIAI_MISS_VERDICTS,
@@ -21,7 +24,8 @@ from kleidi_advisor.gguf import GGML_TYPES
 REASON_OK_KLEIDIAI = "Q4_0 weights are repacked at load time into Arm-optimised kernels (i8mm/dotprod)."
 REASON_NOT_KLEIDIAI_PATH = (
     "K-quant weights are repacked by ggml's own aarch64 path (CPU_REPACK), not KleidiAI's "
-    "i8mm kernels; measured 1.61x slower at pp512 on Neoverse N2."
+    "i8mm kernels; measured 1.61x slower at pp512 on Neoverse N2 "
+    "(+0.049 ppl, WikiText-2 100 chunks)."
 )
 REASON_FALLBACK_GENERIC = (
     "No CPU_KLEIDIAI and no CPU_REPACK model buffer observed for this weight type; "
@@ -96,3 +100,54 @@ def test_miss_set_is_exactly_the_two_non_kleidiai_accelerable_classes():
     assert classify(1).verdict not in KLEIDIAI_MISS_VERDICTS  # F16
     assert classify(12).verdict in KLEIDIAI_MISS_VERDICTS  # Q4_K
     assert classify(23).verdict in KLEIDIAI_MISS_VERDICTS  # IQ4_XS
+
+
+# --- The surface the D-14 sweep never covered --------------------------------
+#
+# `scan` prints a reason string on every single run, so a bare speed ratio in
+# one is the most-emitted violation of the no-throughput-without-its-quality-
+# cost rule in the whole project — and it sat undetected while the prose sweeps
+# checked only markdown.
+
+# The word-boundary applies only to the ASCII `x`, which needs it to avoid
+# matching inside tokens like `q4_K_8x8`. The `×` glyph is not a word character,
+# so a trailing \b after it can never match and must not be required.
+_RATIO = re.compile(r"\d+(?:\.\d+)?\s*(?:x\b|×)", re.IGNORECASE)
+_QUALITY = re.compile(r"ppl|perplexity", re.IGNORECASE)
+
+
+def _all_reason_strings() -> dict:
+    """Every reason a user can actually be shown, plus every _REASON_* constant
+    in the module — so an unreachable-but-defined string can't slip through."""
+    reachable = {f"classify({i})": classify(i).reason for i in list(GGML_TYPES) + [31, 33, 999]}
+    declared = {
+        name: value
+        for name, value in vars(compat).items()
+        if name.startswith("_REASON") and isinstance(value, str)
+    }
+    return {**reachable, **declared}
+
+
+def test_no_reason_string_quotes_a_speed_ratio_without_its_quality_cost():
+    for origin, reason in _all_reason_strings().items():
+        ratio = _RATIO.search(reason)
+        if not ratio:
+            continue
+        assert _QUALITY.search(reason), (
+            f"{origin} emits the bare speed ratio {ratio.group(0)!r} with no ppl figure in the "
+            f"same string; `scan` prints this on every run: {reason!r}"
+        )
+
+
+def test_the_guard_would_actually_catch_a_bare_ratio():
+    # A guard for the guard: the regexes must recognise the shapes this project
+    # writes, so the test above cannot pass by simply never matching anything.
+    assert _RATIO.search("measured 1.61x slower at pp512")
+    assert _RATIO.search("1.61× faster")
+    assert _RATIO.search("2.5 x")
+    # ...and must not fire on things that merely contain a digit and an x.
+    assert not _RATIO.search("repacked with q4_K_8x8")
+    assert not _RATIO.search("Arm-optimised kernels (i8mm/dotprod)")
+    # At least one real reason string must exercise the ratio branch, otherwise
+    # the guard above is vacuous.
+    assert any(_RATIO.search(r) for r in _all_reason_strings().values())

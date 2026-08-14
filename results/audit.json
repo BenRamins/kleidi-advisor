@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "summary": "13 of 17 successfully scanned GGUFs never reach KleidiAI's kernels (3 URLs unreachable, listed below).",
+  "scanned_count": 17,
+  "error_count": 3,
+  "miss_count": 13,
+  "bytes_fetched_total": 211812352,
+  "rows": [
+    {
+      "label": "llama31-8b-bartowski-q4km",
+      "url": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q4_K",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "llama31-8b-bartowski-q4-0",
+      "url": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_0.gguf",
+      "verdict": null,
+      "dominant_type": null,
+      "bytes_fetched": null,
+      "error": "could not fetch https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_0.gguf: HTTP Error 404: Not Found"
+    },
+    {
+      "label": "llama31-8b-bartowski-iq4xs",
+      "url": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-IQ4_XS.gguf",
+      "verdict": "FALLBACK_GENERIC",
+      "dominant_type": "IQ4_XS",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "mistral7b-thebloke-q4km",
+      "url": "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q4_K",
+      "bytes_fetched": 2097152,
+      "error": null
+    },
+    {
+      "label": "mistral7b-thebloke-q5km",
+      "url": "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q5_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q5_K",
+      "bytes_fetched": 2097152,
+      "error": null
+    },
+    {
+      "label": "mistral7b-thebloke-q2k",
+      "url": "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q2_K.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q3_K",
+      "bytes_fetched": 2097152,
+      "error": null
+    },
+    {
+      "label": "qwen25-7b-official-q4-0",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_0-00001-of-00002.gguf",
+      "verdict": "OK_KLEIDIAI",
+      "dominant_type": "Q4_0",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "qwen25-7b-official-q4km",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q4_K",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "qwen25-7b-official-q6k",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q6_k-00001-of-00002.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q6_K",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "qwen25-1p5b-official-q4-0",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_0.gguf",
+      "verdict": "OK_KLEIDIAI",
+      "dominant_type": "Q4_0",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "phi35-mini-bartowski-q4km",
+      "url": "https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-Q4_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q4_K",
+      "bytes_fetched": 2097152,
+      "error": null
+    },
+    {
+      "label": "phi35-mini-bartowski-iq3xs",
+      "url": "https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-IQ3_XS.gguf",
+      "verdict": "FALLBACK_GENERIC",
+      "dominant_type": "IQ3_S",
+      "bytes_fetched": 2097152,
+      "error": null
+    },
+    {
+      "label": "phi35-mini-bartowski-f16",
+      "url": "https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-f16.gguf",
+      "verdict": null,
+      "dominant_type": null,
+      "bytes_fetched": null,
+      "error": "could not fetch https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-f16.gguf: HTTP Error 404: Not Found"
+    },
+    {
+      "label": "gemma2-9b-bartowski-q4km",
+      "url": "https://huggingface.co/bartowski/gemma-2-9b-it-GGUF/resolve/main/gemma-2-9b-it-Q4_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q4_K",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "gemma2-9b-bartowski-q3km",
+      "url": "https://huggingface.co/bartowski/gemma-2-9b-it-GGUF/resolve/main/gemma-2-9b-it-Q3_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q3_K",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "gemma2-9b-bartowski-q80",
+      "url": "https://huggingface.co/bartowski/gemma-2-9b-it-GGUF/resolve/main/gemma-2-9b-it-Q8_0.gguf",
+      "verdict": "NOT_APPLICABLE",
+      "dominant_type": "Q8_0",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "llama31-8b-lmstudio-q4km",
+      "url": "https://huggingface.co/lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q4_K",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "llama32-3b-unsloth-q4km",
+      "url": "https://huggingface.co/unsloth/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "verdict": "NOT_KLEIDIAI_PATH",
+      "dominant_type": "Q4_K",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "llama32-3b-unsloth-q4-0",
+      "url": "https://huggingface.co/unsloth/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_0.gguf",
+      "verdict": "OK_KLEIDIAI",
+      "dominant_type": "Q4_0",
+      "bytes_fetched": 16777216,
+      "error": null
+    },
+    {
+      "label": "mixtral8x7b-thebloke-iq2xs",
+      "url": "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.IQ2_XS.gguf",
+      "verdict": null,
+      "dominant_type": null,
+      "bytes_fetched": null,
+      "error": "could not fetch https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.IQ2_XS.gguf: HTTP Error 404: Not Found"
+    }
+  ]
+}

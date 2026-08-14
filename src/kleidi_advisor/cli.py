@@ -168,6 +168,7 @@ def _cmd_bench(args: argparse.Namespace) -> int:
             perplexity=args.perplexity,
             calib=Path(args.calib) if args.calib else None,
             chunks=args.chunks,
+            instance=args.instance,
         )
     except BinaryResolutionError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -308,6 +309,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     bench.add_argument(
         "--chunks", type=int, default=None, help="Cap llama-perplexity's corpus pass (D-15)."
+    )
+    bench.add_argument(
+        "--instance",
+        default=None,
+        help="Machine label recorded in the results file, e.g. 'Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads'.",
     )
     bench.set_defaults(func=_cmd_bench)
 

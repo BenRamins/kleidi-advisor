@@ -113,7 +113,7 @@ paths are told apart.
 | Class | Types | Reason string (use verbatim) |
 |---|---|---|
 | `OK_KLEIDIAI` | Q4_0 | "Q4_0 weights are repacked at load time into Arm-optimised kernels (i8mm/dotprod)." |
-| `NOT_KLEIDIAI_PATH` | Q2_K, Q3_K, Q4_K, Q5_K, Q6_K, Q8_K | "K-quant weights are repacked by ggml's own aarch64 path (CPU_REPACK), not KleidiAI's i8mm kernels; measured 1.61x slower at pp512 on Neoverse N2." |
+| `NOT_KLEIDIAI_PATH` | Q2_K, Q3_K, Q4_K, Q5_K, Q6_K, Q8_K | "K-quant weights are repacked by ggml's own aarch64 path (CPU_REPACK), not KleidiAI's i8mm kernels; measured 1.61x slower at pp512 on Neoverse N2 (+0.049 ppl, WikiText-2 100 chunks)." |
 | `FALLBACK_GENERIC` | all IQ* | "No CPU_KLEIDIAI and no CPU_REPACK model buffer observed for this weight type; inference runs the generic kernels." |
 | `NOT_APPLICABLE` | F32, F16, BF16, F64, Q8_0, Q4_1, Q5_0, Q5_1, Q8_1, I8/I16/I32/I64, TQ* | "Not a Q4_0-repack candidate; no kernel-miss to report for this weight type." |
 | `UNKNOWN_VERIFY_ON_DEVICE` | everything else, incl. 31–33 | "Unrecognised weight type for this table version; run scan --verify on the target machine." |
