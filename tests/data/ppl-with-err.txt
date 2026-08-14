@@ -1,0 +1,4 @@
+perplexity: calculating perplexity over 655 chunks
+perplexity: 10.32 seconds per pass - ETA 1.88 minutes
+[1]6.5223,[2]6.6981,[3]6.7502,[4]6.7419,[5]6.7841,
+Final estimate: PPL = 6.7841 +/- 0.04012
