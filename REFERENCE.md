@@ -1,8 +1,9 @@
-# REFERENCE — everything the build must not guess
+# REFERENCE — the facts this project must not guess
 
-This file exists because the implementing agent has no network and no llama.cpp. Every byte layout,
-enum value, output shape, and command it needs is written out here. **If you need a fact that is not in
-this file, you may not invent it — follow the anti-hallucination protocol in `CLAUDE.md`.**
+Every byte layout, enum value, output shape, and command `kleidi-advisor` depends on is written out
+here, so no part of the implementation has to reconstruct one from memory. **A fact that is not in
+this file is not to be invented: derive it from one that is, or make the code tolerant of being
+wrong and have it report what it actually saw.**
 
 Confidence is marked on every section:
 - **[SPEC]** — format definition; treat as authoritative, build against it.

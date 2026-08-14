@@ -16,8 +16,9 @@ mistake anyone made, it is the default outcome of the format everyone converged 
 
 In total, **13 of 17 successfully scanned GGUFs never reach KleidiAI's kernels** (3 URLs were
 unreachable and are excluded from the denominator rather than counted either way). Classifying all
-17 took 211.8 MB of traffic, because `scan` reads the GGUF header and stops — see [`AUDIT.md`](AUDIT.md)
-for the row-by-row table and `results/audit.json` for the explicit scanned/error/miss counts.
+17 took 211.8 MB of traffic, because `scan` reads the GGUF header and stops — see
+[`results/audit.json`](results/audit.json) for the row-by-row table and the explicit
+scanned/error/miss counts.
 
 Both common quantization formats are accelerated on Arm — but only one of them reaches Arm's
 KleidiAI kernels. Qwen2.5-7B-Instruct on Azure Standard_E8ps_v6 (Cobalt 100, Arm Neoverse-N2),

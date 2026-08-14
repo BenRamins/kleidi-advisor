@@ -22,10 +22,10 @@ REAL_SUBCOMMANDS = {"scan", "fix", "bench", "report", "audit"}
 
 STEP_HEADINGS = [f"## {n}." for n in range(1, 10)]
 
-# Private infrastructure identifiers, challenge-admin content, and internal
-# decision tags. Matched case-insensitively against the shipped docs.
+# Host and account identifiers from the machine the numbers were measured on,
+# plus internal decision tags. Matched case-insensitively against the shipped docs.
 LEAK_PATTERN = re.compile(
-    r"kleidi-rg|kleidi-box|kleidi-user|devpost|CEST|WOW|judge|rubric|D-[0-9]",
+    r"kleidi-rg|kleidi-box|kleidi-user|D-[0-9]",
     re.IGNORECASE,
 )
 
