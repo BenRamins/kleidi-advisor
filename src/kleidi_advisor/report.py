@@ -55,6 +55,11 @@ class ResultEntry:
         ppl = self.data.get("ppl")
         return ppl.get("corpus") if ppl else None
 
+    @property
+    def ppl_chunks(self) -> Optional[int]:
+        ppl = self.data.get("ppl")
+        return ppl.get("chunks") if ppl else None
+
 
 def load_results(results_dir: Path) -> List[ResultEntry]:
     """Read every *.json in results_dir; anything that is not a bench result —
@@ -87,7 +92,10 @@ def _fmt_metric(entry: ResultEntry, name: str) -> str:
     metric = entry.metric(name)
     if not metric:
         return "—"
-    return f"{metric['median']:.1f} ± {metric['stdev']:.2f}"
+    # Two decimals, not one: these are medians of five runs whose stdev is
+    # ~0.04-0.12 tok/s, and rounding to 0.1 erases differences the report is
+    # being read to judge.
+    return f"{metric['median']:.2f} ± {metric['stdev']:.2f}"
 
 
 def build_table(entries: List[ResultEntry]) -> str:
@@ -107,15 +115,44 @@ def build_table(entries: List[ResultEntry]) -> str:
 
 def find_baseline_and_candidate(
     entries: List[ResultEntry],
+    *,
+    headline_tag: Optional[str] = None,
 ) -> Tuple[Optional[ResultEntry], Optional[ResultEntry]]:
+    """Pick the two entries the headline compares.
+
+    With exactly one non-baseline row, "the other one" is unambiguous. With
+    several it is not, and falling back to whichever sorted first would let the
+    headline change meaning as files are added to the directory. `headline_tag`
+    names the comparison explicitly; without it the old behaviour stands, and
+    the caller is warned when the choice was arbitrary.
+    """
     baseline = next((e for e in entries if e.tag == "baseline"), None)
-    candidate = next((e for e in entries if e.tag != "baseline"), None)
-    return baseline, candidate
+    others = [e for e in entries if e.tag != "baseline"]
+
+    if headline_tag is not None:
+        candidate = next((e for e in others if e.tag == headline_tag), None)
+        if candidate is None:
+            available = ", ".join(sorted(e.tag for e in others)) or "(none)"
+            raise ValueError(
+                f"no result tagged {headline_tag!r} to headline; available tags: {available}"
+            )
+        return baseline, candidate
+
+    if len(others) > 1:
+        chosen = others[0]
+        print(
+            f"WARN: {len(others)} non-baseline results present; headlining {chosen.tag!r}. "
+            "Pass --headline TAG to choose deliberately.",
+            file=sys.stderr,
+        )
+    return baseline, others[0] if others else None
 
 
-def headline_line(entries: List[ResultEntry], *, instance: str) -> str:
+def headline_line(
+    entries: List[ResultEntry], *, instance: str, headline_tag: Optional[str] = None
+) -> str:
     """Spec F4 rule 3 (D-14): pair speedup with its ppl cost, one sentence."""
-    baseline, candidate = find_baseline_and_candidate(entries)
+    baseline, candidate = find_baseline_and_candidate(entries, headline_tag=headline_tag)
     base_pp = baseline.metric("pp512") if baseline else None
     cand_pp = candidate.metric("pp512") if candidate else None
     has_speedup = bool(base_pp and cand_pp and base_pp.get("median"))
@@ -127,7 +164,12 @@ def headline_line(entries: List[ResultEntry], *, instance: str) -> str:
         speedup = cand_pp["median"] / base_pp["median"]
         delta = candidate.ppl_value - baseline.ppl_value
         n_runs = len(base_pp.get("runs", [])) or "?"
-        return f"{speedup:.1f}× pp512 at {delta:+.2f} ppl (WikiText-2, n={n_runs}, {instance})"
+        # D-15: the chunk count belongs next to the ppl delta, because a
+        # truncated corpus pass is not comparable to a full one and the number
+        # is meaningless without it. It is recorded in the schema; use it.
+        chunks = candidate.ppl_chunks
+        corpus = f"WikiText-2, {chunks} chunks" if chunks else "WikiText-2"
+        return f"{speedup:.2f}× pp512 at {delta:+.3f} ppl ({corpus}, n={n_runs}, {instance})"
 
     if has_speedup and not has_ppl:
         # D-14: a throughput number with no ppl neighbour is a bug — the ×
@@ -141,10 +183,15 @@ def headline_line(entries: List[ResultEntry], *, instance: str) -> str:
     return "speedup: not measured — ppl: not measured"
 
 
-def render_markdown(entries: List[ResultEntry], *, instance: Optional[str] = None) -> str:
+def render_markdown(
+    entries: List[ResultEntry],
+    *,
+    instance: Optional[str] = None,
+    headline_tag: Optional[str] = None,
+) -> str:
     instance = instance or "not recorded"
     lines = [
-        headline_line(entries, instance=instance),
+        headline_line(entries, instance=instance, headline_tag=headline_tag),
         ATTRIBUTION_LINE,
         "",
         build_table(entries),
@@ -154,7 +201,9 @@ def render_markdown(entries: List[ResultEntry], *, instance: Optional[str] = Non
     return "\n".join(lines) + "\n"
 
 
-def render_plot(entries: List[ResultEntry], output_path: Path) -> Optional[Path]:
+def render_plot(
+    entries: List[ResultEntry], output_path: Path, *, headline_tag: Optional[str] = None
+) -> Optional[Path]:
     """Spec F4 rules 2 and 4: grouped pp512/tg128 bars with stdev error bars,
     baseline vs the first non-baseline tag; title always carries the ppl
     delta so the chart can't be screenshotted without its caveat. Absent
@@ -170,7 +219,7 @@ def render_plot(entries: List[ResultEntry], output_path: Path) -> Optional[Path]
         print("WARN: matplotlib not installed; skipping plot.", file=sys.stderr)
         return None
 
-    baseline, candidate = find_baseline_and_candidate(entries)
+    baseline, candidate = find_baseline_and_candidate(entries, headline_tag=headline_tag)
     if not baseline or not candidate:
         print("WARN: need a baseline and a non-baseline result to plot; skipping.", file=sys.stderr)
         return None

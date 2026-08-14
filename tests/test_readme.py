@@ -182,13 +182,14 @@ def test_published_and_our_own_rows_are_attributed_to_the_right_authors():
     results = TEXT[TEXT.find("## 5. Results"):TEXT.find("## 6. How It Works")]
     normalized = " ".join(results.split())
 
-    assert "qwen-published-q4_0" in results
+    assert "published-q4_0" in results
     assert "from the same repository as the Q4_K_M baseline" in normalized
     assert "The `imatrix-fix` row is *our* artifact" in normalized
     # No row may be tagged plain "fixed" while it is really Qwen's own file.
     for line in results.splitlines():
-        if line.startswith("| qwen2.5-7b-instruct-q4_0"):
-            assert "| fixed |" not in line, line
+        if line.startswith("| qwen-q4_0-ref"):
+            assert "| fixed" not in line, line
+            assert "published-q4_0" in line, line
 
 
 def test_fix_row_carries_its_own_measurements_not_the_published_build_s():
@@ -197,13 +198,13 @@ def test_fix_row_carries_its_own_measurements_not_the_published_build_s():
     build's numbers would read as success and be wrong."""
     results = TEXT[TEXT.find("## 5. Results"):TEXT.find("## 6. How It Works")]
     table_rows = [line for line in results.splitlines() if line.startswith("| qwen")]
-    fix_rows = [line for line in table_rows if "imatrix-fix" in line]
+    fix_rows = [line for line in table_rows if "imatrix-fix" in line and "±" in line]
     assert len(fix_rows) == 1, "expected exactly one imatrix-fix data row"
     row = fix_rows[0]
     assert "_pending_" not in row, "the fix row is measured; it must not still say pending"
     assert "66.65" in row and "17.13" in row and "8.1525" in row
     # The published build's figures must not appear in our row.
-    for published in ("71.48", "17.56", "8.2215"):
+    for published in ("71.60", "17.61", "8.2215"):
         assert published not in row, f"fix row carries the published build's {published}"
 
 
@@ -302,8 +303,8 @@ def test_unexplained_speed_gap_is_stated_as_open_and_not_speculated_past():
     normalized = " ".join(results.split())
 
     # The gap itself, with both numbers so a reader can check the arithmetic.
-    assert "6.8% slower at pp512" in normalized
-    assert "66.65" in normalized and "71.48" in normalized
+    assert "6.9% slower at pp512" in normalized
+    assert "66.65" in normalized and "71.60" in normalized
     # Stated as unexplained, and explicitly not investigated.
     assert "unexplained" in normalized.lower()
     assert "did not investigate" in normalized.lower()
@@ -325,7 +326,7 @@ def test_headline_ratio_still_comes_from_the_two_published_builds():
     results = _results_section()
     headline_row = [
         line for line in results.splitlines()
-        if line.startswith("| **qwen-published-q4_0**")
+        if line.startswith("| **`published-q4_0`**")
     ]
     assert len(headline_row) == 1, "the headline ratio row must name the published build"
     assert "1.61×" in headline_row[0]
@@ -333,3 +334,52 @@ def test_headline_ratio_still_comes_from_the_two_published_builds():
     fix_row = [line for line in results.splitlines() if line.startswith("| `imatrix-fix`")]
     assert len(fix_row) == 1
     assert "1.50×" in fix_row[0] and "1.61×" not in fix_row[0]
+
+
+# --- §5 must stay what `report` actually renders ------------------------------
+
+
+def test_results_section_matches_what_report_renders_from_results_dir():
+    """The claim in §5 is that the block is `report`'s output. This checks it
+    against the real thing rather than trusting the transcription — a stale
+    paste is exactly the kind of drift that turns a verifiable claim into a
+    false one."""
+    from kleidi_advisor.report import load_results, render_markdown
+
+    entries = load_results(ROOT / "results")
+    assert entries, "results/ has no schema-1 bench files; §5 cannot claim to be rendered"
+
+    rendered = render_markdown(
+        entries,
+        instance="Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads",
+        headline_tag="published-q4_0",
+    )
+    lines = rendered.splitlines()
+
+    # Headline verbatim.
+    assert lines[0] in TEXT, f"README headline is stale; report now renders: {lines[0]}"
+    # Every data row's cells, allowing README to pad the table for readability.
+    for line in lines:
+        if not line.startswith("| qwen"):
+            continue
+        for cell in (c.strip() for c in line.strip("|").split("|")):
+            assert cell in TEXT, f"§5 is missing rendered cell {cell!r} from row {line!r}"
+
+
+def test_every_result_file_records_its_instance_and_commit():
+    import json
+
+    files = sorted((ROOT / "results").glob("*.json"))
+    bench_files = [
+        f for f in files
+        if isinstance(json.loads(f.read_text(encoding="utf-8")).get("metrics"), dict)
+    ]
+    assert len(bench_files) == 3, f"expected three bench result files, found {len(bench_files)}"
+    for path in bench_files:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for field in ("instance", "llama_cpp_commit"):
+            value = data.get(field)
+            assert value, f"{path.name}: {field} is empty"
+            assert "TODO" not in value, f"{path.name}: {field} still holds a placeholder"
+        assert "Neoverse N2" in data["instance"], path.name
+        assert "1692f9e50" in data["llama_cpp_commit"], path.name

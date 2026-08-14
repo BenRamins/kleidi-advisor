@@ -3,8 +3,8 @@
   "model": "qwen-q4_0-ref.gguf",
   "tag": "published-q4_0",
   "threads": 8,
-  "instance": null,
-  "llama_cpp_commit": null,
+  "instance": "Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads",
+  "llama_cpp_commit": "1692f9e50 (b10431)",
   "timestamp_utc": "2026-08-14T18:52:17Z",
   "argv": [
     "llama-bench",

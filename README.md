@@ -109,21 +109,31 @@ quality gate, and the cold re-run — is in [`REPRODUCE.md`](REPRODUCE.md).
 
 ## 5. Results
 
-**1.61× pp512 at +0.049 ppl (WikiText-2, 100 chunks), Azure Standard_E8ps_v6 (Cobalt 100, Neoverse
-N2), 8 threads.**
+Rendered by `kleidi-advisor report --results-dir results --headline published-q4_0 --instance "Azure
+Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads"`, from the three result files in
+[`results/`](results/):
 
-| model | tag | threads | pp512 (tok/s) | tg128 (tok/s) | PPL |
-|---|---|---|---|---|---|
-| qwen2.5-7b-instruct-q4_k_m | baseline | 8 | 44.47 ± 0.05 | 15.85 ± 0.03 | 8.1728 ± 0.14245 |
-| qwen2.5-7b-instruct-q4_0 | qwen-published-q4_0 | 8 | 71.48 ± 0.12 | 17.56 ± 0.03 | 8.2215 ± 0.14170 |
-| qwen-imatrix-q4_0 | imatrix-fix | 8 | 66.65 ± 0.12 | 17.13 ± 0.04 | 8.1525 |
+```
+1.61× pp512 at +0.049 ppl (WikiText-2, 100 chunks, n=5, Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads)
+Speedup comes from Arm's KleidiAI kernels; this tool detects the miss and measures the delta.
 
-| vs. baseline | pp512 | tg128 | PPL |
+| model                  | tag             | threads | pp512 (tok/s) | tg128 (tok/s) | ppl    |
+|------------------------|-----------------|---------|---------------|---------------|--------|
+| qwen-q4km.gguf         | baseline        | 8       | 44.47 ± 0.04  | 15.79 ± 0.01  | 8.1728 |
+| qwen-imatrix-q4_0.gguf | imatrix-fix     | 8       | 66.65 ± 0.12  | 17.13 ± 0.04  | 8.1525 |
+| qwen-q4_0-ref.gguf     | published-q4_0  | 8       | 71.60 ± 0.06  | 17.61 ± 0.04  | 8.2215 |
+
+Instance: Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads
+```
+
+Derived from those medians:
+
+| vs. baseline | pp512 | tg128 | ppl |
 |---|---|---|---|
-| **qwen-published-q4_0** — the headline | **1.61×** | **1.11×** | **+0.049 (+0.6%)** |
+| **`published-q4_0`** — the headline | **1.61×** | **1.12×** | **+0.049 (+0.6%)** |
 | `imatrix-fix` — our own `fix` output | 1.50× | 1.08× | −0.020, see caveats below |
 
-**The headline is the two Qwen-published builds, deliberately.** `qwen-published-q4_0` is
+**The headline is the two Qwen-published builds, deliberately.** `published-q4_0` is
 `qwen2.5-7b-instruct-q4_0.gguf` from the same repository as the Q4_K_M baseline — one publisher, one
 fp16 lineage, quantization type the only variable, and nothing calibrated by us anywhere in it. That
 is the honest ecosystem claim: this is what a user gets by downloading the other file already on the
@@ -134,11 +144,11 @@ importance matrix was calibrated on `wiki.test.raw` and perplexity was then eval
 `wiki.test.raw`: the same file. Calibrating on the evaluation set very likely flatters that number,
 so it must not be read as a quality gain. `wiki.train.raw` exists and calibrating on it would remove
 the overlap entirely; there was not time to re-run before submission. Note also that −0.020 is an
-order of magnitude smaller than the ±0.14 uncertainty on the other two perplexity measurements, so
-even without the contamination this run could not resolve a difference that size.
+order of magnitude smaller than the ±0.14 uncertainty on the two published builds' perplexity
+measurements, so even without the contamination this run could not resolve a difference that size.
 
-**Caveat 2 — unexplained: our imatrix Q4_0 is 6.8% slower at pp512 than Qwen's published Q4_0**
-(66.65 vs 71.48 tok/s), although both are Q4_0 and both land in a `CPU_KLEIDIAI` buffer. **We did not
+**Caveat 2 — unexplained: our imatrix Q4_0 is 6.9% slower at pp512 than Qwen's published Q4_0**
+(66.65 vs 71.60 tok/s), although both are Q4_0 and both land in a `CPU_KLEIDIAI` buffer. **We did not
 investigate this.** Candidates worth checking, named as candidates and not as conclusions: per-tensor
 precision choices made under imatrix guidance, and how the output and token-embedding tensors were
 handled during quantization. Anyone reproducing this work should treat the gap as open — it is the
@@ -148,31 +158,28 @@ matching a well-made published Q4_0 on speed.
 The quality gate passed on its own terms: candidate 8.1525 against baseline 8.1728, `--max-delta 0.3`
 — but see caveat 1 before reading anything into the direction of that difference.
 
+**Harness cross-check.** The `published-q4_0` model was also benchmarked by hand with raw
+`llama-bench`, before this harness existed, and the two runs agree: pp512 71.48 hand-run vs 71.6045
+through `bench` (0.2%), tg128 17.56 vs 17.6122 (0.3%), perplexity identical at 8.2215. The same
+comparison on the baseline row agrees to 0.007% at pp512 (44.47 vs 44.467) and 0.4% at tg128 (15.85
+vs 15.7903). `kleidi-advisor bench` reports what the underlying tool reports; it parses and
+aggregates, it does not adjust. The residual differences are run-to-run variance, and they are larger
+on token generation than on prompt processing in both rows.
+
 Environment: llama.cpp `1692f9e50` (b10431), built `-DGGML_CPU_KLEIDIAI=ON -DGGML_NATIVE=ON`.
 Perplexity is WikiText-2 raw at `--chunks 100`, the same corpus and chunk count on all three rows.
-The `imatrix-fix` perplexity was recorded without an uncertainty figure; the other two carry theirs.
+The per-run perplexity uncertainties (±0.14245 baseline, ±0.14170 published) come from
+`llama-perplexity`'s own output; the results schema records the value only, so they do not appear in
+the rendered table above.
 
 Read the quality column carefully. The headline's +0.049 perplexity gap is smaller than the ±0.14
 uncertainty on either measurement, so this run **cannot resolve** a quality difference between the
 two published builds — a limit on what was measured, not a demonstration that they are equivalent. A
 longer corpus pass could separate them.
 
-<!-- PENDING-PROVENANCE: this sentence claims results/*.json exists. It does not yet — the numbers
-     above were produced by invoking llama-bench and llama-perplexity by hand. Un-comment it only
-     once `kleidi-advisor bench` has written schema-1 result files into results/, which
-     tests/test_readme.py arbitrates automatically: the test fails if this claim is visible while
-     results/ is still empty. If results/ is still empty at commit time, delete these lines.
-
-     This section is what `kleidi-advisor report --instance "Azure Standard_E8ps_v6 (Cobalt 100,
-     Neoverse N2), 8 threads"` renders from `results/*.json`; `report` will not emit a throughput
-     figure without its perplexity neighbour.
--->
-
-How these numbers were produced: the two published-build rows by invoking `llama-bench` and
-`llama-perplexity` directly on the machine described above; the `imatrix-fix` row through
-`kleidi-advisor fix` and `kleidi-advisor bench --gate`, whose gate verdict is quoted verbatim above.
-The schema-1 result files `bench` wrote are not in this repository, so this table is transcribed
-rather than rendered by `kleidi-advisor report` — see the marker above.
+The three files this section renders from are committed under [`results/`](results/), each recording
+the instance and the llama.cpp commit it was measured on, so the table above can be regenerated and
+checked rather than taken on trust.
 
 ## 6. How It Works
 

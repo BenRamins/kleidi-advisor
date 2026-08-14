@@ -3,8 +3,8 @@
   "model": "qwen-imatrix-q4_0.gguf",
   "tag": "imatrix-fix",
   "threads": 8,
-  "instance": "TODO(box)",
-  "llama_cpp_commit": "TODO(box)",
+  "instance": "Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads",
+  "llama_cpp_commit": "1692f9e50 (b10431)",
   "timestamp_utc": "2026-08-14T18:21:51Z",
   "argv": [
     "llama-bench",

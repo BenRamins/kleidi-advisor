@@ -201,12 +201,16 @@ def _cmd_bench(args: argparse.Namespace) -> int:
 
 def _cmd_report(args: argparse.Namespace) -> int:
     entries = load_results(Path(args.results_dir))
-    rendered = render_markdown(entries, instance=args.instance)
+    try:
+        rendered = render_markdown(entries, instance=args.instance, headline_tag=args.headline)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     Path(args.output).write_text(rendered, encoding="utf-8")
     print(f"wrote {args.output}")
 
     if args.plot:
-        render_plot(entries, Path(args.plot))
+        render_plot(entries, Path(args.plot), headline_tag=args.headline)
 
     return 0
 
@@ -327,6 +331,14 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("-o", "--output", default="RESULTS.md", help="Path to write the markdown report to.")
     report.add_argument("--plot", default=None, help="Path to write a grouped-bar PNG plot to.")
     report.add_argument("--instance", default=None, help="Instance type label, e.g. c8g.8xlarge.")
+    report.add_argument(
+        "--headline",
+        default=None,
+        help=(
+            "Tag of the result the headline compares against baseline. Name it "
+            "deliberately when more than one non-baseline result is present."
+        ),
+    )
     report.set_defaults(func=_cmd_report)
 
     audit = subparsers.add_parser(
