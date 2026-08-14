@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "model": "qwen-q4km.gguf",
+  "tag": "baseline",
+  "threads": 8,
+  "instance": "TODO(box)",
+  "llama_cpp_commit": "TODO(box)",
+  "timestamp_utc": "2026-08-14T17:32:46Z",
+  "argv": [
+    "llama-bench",
+    "-m",
+    "qwen-q4km.gguf",
+    "-p",
+    "512",
+    "-n",
+    "128",
+    "-t",
+    "8",
+    "-r",
+    "5",
+    "-o",
+    "json"
+  ],
+  "metrics": {
+    "pp512": {
+      "runs": [
+        44.467,
+        44.3915,
+        44.4803,
+        44.5088,
+        44.4399
+      ],
+      "median": 44.467,
+      "stdev": 0.039768178233356155,
+      "unit": "tok/s"
+    },
+    "tg128": {
+      "runs": [
+        15.7959,
+        15.7732,
+        15.7722,
+        15.7903,
+        15.8063
+      ],
+      "median": 15.7903,
+      "stdev": 0.013193847050803894,
+      "unit": "tok/s"
+    }
+  },
+  "ppl": {
+    "value": 8.1728,
+    "corpus": "wikitext-2-raw/wiki.test.raw",
+    "chunks": 100
+  }
+}

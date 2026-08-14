@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "model": "qwen-q4_0-ref.gguf",
+  "tag": "published-q4_0",
+  "threads": 8,
+  "instance": null,
+  "llama_cpp_commit": null,
+  "timestamp_utc": "2026-08-14T18:52:17Z",
+  "argv": [
+    "llama-bench",
+    "-m",
+    "qwen-q4_0-ref.gguf",
+    "-p",
+    "512",
+    "-n",
+    "128",
+    "-t",
+    "8",
+    "-r",
+    "5",
+    "-o",
+    "json"
+  ],
+  "metrics": {
+    "pp512": {
+      "runs": [
+        71.5909,
+        71.6111,
+        71.6186,
+        71.6045,
+        71.4654
+      ],
+      "median": 71.6045,
+      "stdev": 0.057081240350923115,
+      "unit": "tok/s"
+    },
+    "tg128": {
+      "runs": [
+        17.5427,
+        17.6447,
+        17.6044,
+        17.641,
+        17.6122
+      ],
+      "median": 17.6122,
+      "stdev": 0.03667582309914785,
+      "unit": "tok/s"
+    }
+  },
+  "ppl": {
+    "value": 8.2215,
+    "corpus": "wikitext-2-raw/wiki.test.raw",
+    "chunks": 100
+  }
+}

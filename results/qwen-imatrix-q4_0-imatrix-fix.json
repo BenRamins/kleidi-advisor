@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "model": "qwen-imatrix-q4_0.gguf",
+  "tag": "imatrix-fix",
+  "threads": 8,
+  "instance": "TODO(box)",
+  "llama_cpp_commit": "TODO(box)",
+  "timestamp_utc": "2026-08-14T18:21:51Z",
+  "argv": [
+    "llama-bench",
+    "-m",
+    "qwen-imatrix-q4_0.gguf",
+    "-p",
+    "512",
+    "-n",
+    "128",
+    "-t",
+    "8",
+    "-r",
+    "5",
+    "-o",
+    "json"
+  ],
+  "metrics": {
+    "pp512": {
+      "runs": [
+        66.4925,
+        66.6535,
+        66.4212,
+        66.7088,
+        66.6939
+      ],
+      "median": 66.6535,
+      "stdev": 0.1156385645016379,
+      "unit": "tok/s"
+    },
+    "tg128": {
+      "runs": [
+        17.1305,
+        17.1219,
+        17.2041,
+        17.0798,
+        17.1702
+      ],
+      "median": 17.1305,
+      "stdev": 0.04255420073271319,
+      "unit": "tok/s"
+    }
+  },
+  "ppl": {
+    "value": 8.1525,
+    "corpus": "wikitext-2-raw/wiki.test.raw",
+    "chunks": 100
+  }
+}
