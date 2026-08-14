@@ -26,14 +26,14 @@ one repository, so the quantization type is the only variable between them (§5)
 
 | format | pp512 (tok/s) | tg128 (tok/s) | PPL (WikiText-2, 100 chunks) | load path taken |
 |---|---|---|---|---|
-| Q4_K_M | 44.47 ± 0.05 | 15.85 ± 0.03 | 8.1728 ± 0.14245 | `CPU_REPACK` — ggml's own aarch64 repack (`q4_K_8x8`) |
-| Q4_0 | 71.48 ± 0.12 | 17.56 ± 0.03 | 8.2215 ± 0.14170 | `CPU_KLEIDIAI` — Arm's KleidiAI i8mm kernels |
+| Q4_K_M | 44.47 ± 0.04 | 15.79 ± 0.01 | 8.1728 ± 0.14245 | `CPU_REPACK` — ggml's own aarch64 repack (`q4_K_8x8`) |
+| Q4_0 | 71.60 ± 0.06 | 17.61 ± 0.04 | 8.2215 ± 0.14170 | `CPU_KLEIDIAI` — Arm's KleidiAI i8mm kernels |
 
 **1.61× prompt processing at +0.049 perplexity — a 0.6% quality cost that sits inside the error bars
 of both measurements.** That is a statement about resolution, not equivalence: this run cannot
 distinguish the two models' quality, which is not the same as showing they are identical. Token
-generation gains less — 1.11× at the same +0.049 ppl — because it is memory-bandwidth-bound
-rather than compute-bound.
+generation gains less, 1.12×, because it is memory-bandwidth-bound rather than compute-bound;
+the +0.049 ppl above is the quality cost for the pair.
 
 The interesting part is *not* that Q4_0 is faster. It's that the widely-repeated shorthand — "K-quants
 are unaccelerated on Arm" — is false, and it was this repo's own starting assumption too. K-quants

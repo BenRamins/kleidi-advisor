@@ -383,3 +383,88 @@ def test_every_result_file_records_its_instance_and_commit():
             assert "TODO" not in value, f"{path.name}: {field} still holds a placeholder"
         assert "Neoverse N2" in data["instance"], path.name
         assert "1692f9e50" in data["llama_cpp_commit"], path.name
+
+
+# --- §1 must not drift from §5 ------------------------------------------------
+#
+# §1 and §5 quote the same three measurements. §5 is rendered from results/ and
+# so cannot drift; §1 is hand-written prose, and it did drift — it carried
+# hand-run figures for two full turns after §5 became rendered output. This
+# binds §1's table to the same source of truth.
+
+# §1 labels its rows by quantization format; results/ tags them by role.
+SECTION_1_ROW_TO_TAG = {"Q4_K_M": "baseline", "Q4_0": "published-q4_0"}
+
+
+def _rendered_cells_by_tag() -> dict:
+    """{tag: {"pp512": "44.47 ± 0.04", "tg128": ..., "ppl": "8.1728"}}"""
+    from kleidi_advisor.report import load_results, render_markdown
+
+    rendered = render_markdown(
+        load_results(ROOT / "results"),
+        instance="Azure Standard_E8ps_v6 (Cobalt 100, Neoverse N2), 8 threads",
+        headline_tag="published-q4_0",
+    )
+    by_tag = {}
+    for line in rendered.splitlines():
+        if not line.startswith("| qwen"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        _model, tag, _threads, pp512, tg128, ppl = cells
+        by_tag[tag] = {"pp512": pp512, "tg128": tg128, "ppl": ppl}
+    return by_tag
+
+
+def _section_1_rows() -> dict:
+    finding = TEXT[TEXT.find("## 1. The Finding"):TEXT.find("## 2. Why Nobody Notices")]
+    rows = {}
+    for line in finding.splitlines():
+        if not line.startswith("| Q4"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        fmt, pp512, tg128, ppl = cells[0], cells[1], cells[2], cells[3]
+        rows[fmt] = {"pp512": pp512, "tg128": tg128, "ppl": ppl}
+    return rows
+
+
+def test_section_1_table_matches_the_rendered_values_in_section_5():
+    rendered = _rendered_cells_by_tag()
+    section_1 = _section_1_rows()
+    assert set(section_1) == set(SECTION_1_ROW_TO_TAG), f"unexpected §1 rows: {sorted(section_1)}"
+
+    for fmt, tag in SECTION_1_ROW_TO_TAG.items():
+        for metric in ("pp512", "tg128"):
+            assert section_1[fmt][metric] == rendered[tag][metric], (
+                f"§1 row {fmt} {metric} is {section_1[fmt][metric]!r} but results/ renders "
+                f"{rendered[tag][metric]!r} — §1 has drifted from §5"
+            )
+        # §1 adds llama-perplexity's own uncertainty, which the results schema
+        # does not store; the value itself must still agree.
+        assert section_1[fmt]["ppl"].split("±")[0].strip() == rendered[tag]["ppl"], (
+            f"§1 row {fmt} ppl disagrees with results/"
+        )
+
+
+def test_section_1_and_section_5_agree_on_the_derived_ratios():
+    rendered = _rendered_cells_by_tag()
+    base = float(rendered["baseline"]["pp512"].split("±")[0])
+    pub = float(rendered["published-q4_0"]["pp512"].split("±")[0])
+    base_tg = float(rendered["baseline"]["tg128"].split("±")[0])
+    pub_tg = float(rendered["published-q4_0"]["tg128"].split("±")[0])
+
+    assert f"{pub / base:.2f}×" == "1.61×"
+    assert f"{pub_tg / base_tg:.2f}×" == "1.12×"
+    # Both ratios must appear in the README exactly as the medians imply.
+    for ratio in (f"{pub / base:.2f}×", f"{pub_tg / base_tg:.2f}×"):
+        assert ratio in TEXT, f"README never states the derived ratio {ratio}"
+    # And the superseded rounding must be gone from the prose.
+    finding = TEXT[TEXT.find("## 1. The Finding"):TEXT.find("## 2. Why Nobody Notices")]
+    assert "1.11×" not in finding, "§1 still carries the pre-render tg128 ratio"
+
+
+def test_tg128_sentence_does_not_imply_a_per_metric_perplexity():
+    # "1.11x at the same +0.049 ppl" read as though perplexity had been measured
+    # once per throughput metric. It is one measurement for the model pair.
+    normalized = " ".join(TEXT.split())
+    assert "at the same +0.049 ppl" not in normalized
+    assert "the +0.049 ppl above is the quality cost for the pair" in normalized
