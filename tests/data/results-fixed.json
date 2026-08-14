@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "model": "llama-3.1-8b-imatrix-q4_0.gguf",
+  "tag": "fixed",
+  "threads": 16,
+  "instance": "TODO(box)",
+  "llama_cpp_commit": "TODO(box)",
+  "timestamp_utc": "2026-08-14T10:47:02Z",
+  "argv": ["llama-bench", "-m", "llama-3.1-8b-imatrix-q4_0.gguf", "-p", "512", "-n", "128", "-t", "16", "-r", "5", "-o", "json"],
+  "metrics": {
+    "pp512": {"runs": [1162.0, 1163.1, 1163.8, 1164.5, 1165.2], "median": 1163.8, "stdev": 1.15, "unit": "tok/s"},
+    "tg128": {"runs": [29.9, 30.0, 30.12, 30.2, 30.3], "median": 30.12, "stdev": 0.14, "unit": "tok/s"}
+  },
+  "ppl": {"value": 6.82, "corpus": "wikitext-2-raw", "chunks": null}
+}
