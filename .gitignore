@@ -5,7 +5,7 @@ PLAN.md
 
 # >>> otto-init >>>  (regenerable/personal tooling ignored; governance + artifacts stay tracked)
 .claude/settings.local.json
-.claude/skills/
+.claude/skills/*
 .specify/
 # <<< otto-init <<<
 
@@ -14,3 +14,29 @@ PLAN.md
 graft/
 .claude/helpers/graft-statusline.cjs
 .claude/helpers/graft-hooks.cjs
+
+# >>> kleidi-advisor F1.S1 >>>
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+results/*
+!results/README.md
+*.gguf
+AUDIT.md
+RESULTS.md
+# <<< kleidi-advisor F1.S1 <<<
+
+# >>> kleidi-advisor F6.S1 >>>
+# otto-init's .claude/skills/* blanket-ignore (above) is for personal/side-loaded
+# skills; kleidi-advisor's own skill is a submission deliverable, not tooling.
+# (Needed changing the otto-init line from ".claude/skills/" to ".claude/skills/*":
+# git cannot re-include a file whose parent directory was excluded outright — the
+# glob form excludes each entry individually instead, so this negation works.)
+!.claude/skills/kleidi-advisor/
+!.claude/skills/kleidi-advisor/SKILL.md
+# <<< kleidi-advisor F6.S1 <<<
+
+RUNBOOK.md
+
+tests/test_runbook.py
